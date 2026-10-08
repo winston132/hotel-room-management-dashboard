@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Booking Analytics & Guest Experience - Hotel Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="fa-solid fa-chart-line text-success me-2"></i>Booking Analytics & Guest Experience Portal</h2>
+        <p class="text-muted">Analyze financial trends, service request lifecycles, and guest feedback ratings.</p>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#newServiceRequestModal">
+            <i class="fa-solid fa-bell me-1"></i> New Service Request
+        </button>
+        <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#newFeedbackModal">
+            <i class="fa-solid fa-star me-1"></i> Submit Feedback
+        </button>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mb-5">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3 p-4">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-pie-chart me-2 text-primary"></i>Room Type Popularity</h5>
+            <canvas id="roomTypeChart" height="220"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3 p-4">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-column me-2 text-success"></i>Reservation Status Breakdown</h5>
+            <canvas id="bookingStatusChart" height="220"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- In-Stay Service Requests Table -->
+<h4 class="fw-bold text-dark mb-3">In-Stay Guest Service Requests</h4>
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-5">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table custom-table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Req ID</th>
+                        <th>Room & Guest</th>
+                        <th>Service Type</th>
+                        <th>Details</th>
+                        <th>Requested At</th>
+                        <th>Status</th>
+                        <th class="text-end">Update</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr>
+                        <td class="fw-bold">#{{ req.id }}</td>
+                        <td>
+                            <div class="fw-bold">Room {{ req.booking.room.room_number }}</div>
+                            <small class="text-muted">{{ req.booking.guest.full_name }}</small>
+                        </td>
+                        <td><span class="badge bg-info text-dark"><i class="fa-solid fa-concierge-bell me-1"></i>{{ req.service_type }}</span></td>
+                        <td class="text-dark">{{ req.details }}</td>
+                        <td class="small text-muted">{{ req.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if req.status == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif req.status == 'In Progress' %}
+                            <span class="badge bg-warning text-dark">In Progress</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form action="{{ url_for('update_service_request', req_id=req.id) }}" method="POST" class="d-inline">
+                                <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                                    <option value="Pending" {% if req.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                    <option value="In Progress" {% if req.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Completed" {% if req.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Loyalty & Feedback Section -->
+<div class="row g-4">
+    <!-- Guest Reviews & Ratings -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header card-header-custom py-3">
+                <i class="fa-solid fa-comments me-2 text-warning"></i>Recent Guest Reviews & Ratings
+            </div>
+            <div class="card-body p-3">
+                {% for fb in feedbacks %}
+                <div class="border-bottom py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark">{{ fb.guest.full_name }}</span>
+                        <div>
+                            {% for i in range(fb.rating) %}
+                            <i class="fa-solid fa-star text-warning"></i>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <p class="text-muted mb-1 small">{{ fb.comment }}</p>
+                    <small class="text-secondary opacity-75">{{ fb.created_at.strftime('%b %d, %Y') }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Guest Loyalty Program -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header card-header-custom py-3">
+                <i class="fa-solid fa-gem me-2 text-primary"></i>Guest Loyalty Program Leaderboard
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for g in guests %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-4">
+                        <div>
+                            <div class="fw-bold text-dark">{{ g.full_name }}</div>
+                            <small class="text-muted">{{ g.email }}</small>
+                        </div>
+                        <span class="badge bg-primary rounded-pill px-3 py-2 fs-6">
+                            <i class="fa-solid fa-coins me-1"></i> {{ g.loyalty_points }} Pts
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: New Service Request -->
+<div class="modal fade" id="newServiceRequestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-bell me-2 text-warning"></i>In-Stay Service Request</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_service_request') }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Active Stay Guest / Room</label>
+                        <select class="form-select" name="booking_id" required>
+                            {% for b in bookings %}
+                            <option value="{{ b.id }}">Room {{ b.room.room_number }} - {{ b.guest.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Service Type</label>
+                        <select class="form-select" name="service_type" required>
+                            <option value="Room Service">Room Service (Food & Drink)</option>
+                            <option value="Housekeeping">Housekeeping (Towel/Linen change)</option>
+                            <option value="Amenities">Extra Amenities</option>
+                            <option value="Maintenance">Maintenance / Repair</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Request Details</label>
+                        <textarea class="form-control" name="details" rows="3" placeholder="Describe special requests..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-gold w-100 py-2">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: New Feedback -->
+<div class="modal fade" id="newFeedbackModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-star me-2 text-warning"></i>Guest Feedback Submission</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_feedback') }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Select Guest</label>
+                        <select class="form-select" name="guest_id" required>
+                            {% for g in guests %}
+                            <option value="{{ g.id }}">{{ g.full_name }} ({{ g.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rating (1 to 5 Stars)</label>
+                        <select class="form-select" name="rating" required>
+                            <option value="5">⭐⭐⭐⭐⭐ (5 - Excellent)</option>
+                            <option value="4">⭐⭐⭐⭐ (4 - Very Good)</option>
+                            <option value="3">⭐⭐⭐ (3 - Average)</option>
+                            <option value="2">⭐⭐ (2 - Poor)</option>
+                            <option value="1">⭐ (1 - Terrible)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Feedback Comments</label>
+                        <textarea class="form-control" name="comment" rows="3" placeholder="How was your stay?"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-gold w-100 py-2">Submit Feedback</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const roomTypeData = {{ analytics.room_type_popularity | tojson }};
+    const bookingStats = {{ analytics.booking_stats | tojson }};
+
+    // Doughnut Chart for Room Types
+    const ctxRoom = document.getElementById('roomTypeChart').getContext('2d');
+    new Chart(ctxRoom, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(roomTypeData),
+            datasets: [{
+                data: Object.values(roomTypeData),
+                backgroundColor: ['#1a2b4c', '#c5a059', '#17a2b8', '#28a745']
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Bar Chart for Booking Status
+    const ctxStatus = document.getElementById('bookingStatusChart').getContext('2d');
+    new Chart(ctxStatus, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(bookingStats),
+            datasets: [{
+                label: 'Reservations Count',
+                data: Object.values(bookingStats),
+                backgroundColor: ['#17a2b8', '#28a745', '#6c757d']
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+</script>
+{% endblock %}

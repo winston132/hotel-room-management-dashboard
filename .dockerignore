@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+instance/hotel_portal.db
+.git
+.gitignore
+.dockerignore

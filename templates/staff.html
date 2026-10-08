@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Staff & Housekeeping Operations - Hotel Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Staff Management & Housekeeping Operations</h2>
+        <p class="text-muted">Monitor room cleaning status, dispatch housekeeping tasks, and manage staff shift schedules.</p>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button class="btn btn-outline-dark me-2" data-bs-toggle="modal" data-bs-target="#newStaffModal">
+            <i class="fa-solid fa-user-plus me-1"></i> Add Staff Member
+        </button>
+        <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#newTaskModal">
+            <i class="fa-solid fa-plus-circle me-1"></i> Assign Task
+        </button>
+    </div>
+</div>
+
+<!-- Room Cleanliness Grid -->
+<h4 class="fw-bold text-dark mb-3">Live Room Status & Cleaning Overview</h4>
+<div class="row g-3 mb-5">
+    {% for r in rooms %}
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold fs-5 text-dark">Room {{ r.room_number }}</span>
+                {% if r.status == 'Available' %}
+                <span class="badge badge-available">Clean & Ready</span>
+                {% elif r.status == 'Occupied' %}
+                <span class="badge badge-occupied">Occupied</span>
+                {% elif r.status == 'Dirty' %}
+                <span class="badge badge-dirty">Needs Cleaning</span>
+                {% else %}
+                <span class="badge badge-maintenance">Maintenance</span>
+                {% endif %}
+            </div>
+            <small class="text-muted mb-2 d-block">{{ r.room_type }} &bull; ${{ r.price_per_night }}/night</small>
+            <form action="{{ url_for('update_room_status', room_id=r.id) }}" method="POST" class="mt-2">
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="Available" {% if r.status == 'Available' %}selected{% endif %}>Available (Clean)</option>
+                    <option value="Occupied" {% if r.status == 'Occupied' %}selected{% endif %}>Occupied</option>
+                    <option value="Dirty" {% if r.status == 'Dirty' %}selected{% endif %}>Dirty (Cleaning Required)</option>
+                    <option value="Maintenance" {% if r.status == 'Maintenance' %}selected{% endif %}>Out of Order (Maintenance)</option>
+                </select>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Housekeeping & Maintenance Tasks Table -->
+<h4 class="fw-bold text-dark mb-3">Housekeeping & Operational Tasks</h4>
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-5">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table custom-table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Task ID</th>
+                        <th>Room</th>
+                        <th>Task Details</th>
+                        <th>Assigned Staff</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th class="text-end">Update Progress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tasks %}
+                    <tr>
+                        <td class="fw-bold">#{{ t.id }}</td>
+                        <td><span class="badge bg-dark">Room {{ t.room.room_number }}</span></td>
+                        <td>{{ t.task_type }}</td>
+                        <td>
+                            {% if t.staff %}
+                            <i class="fa-solid fa-user-check me-1 text-success"></i>{{ t.staff.name }} ({{ t.staff.role }})
+                            {% else %}
+                            <span class="text-muted italic"><i class="fa-solid fa-user-clock me-1 text-warning"></i>Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if t.priority == 'High' %}bg-danger{% elif t.priority == 'Medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ t.priority }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if t.status == 'Completed' %}
+                            <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Completed</span>
+                            {% elif t.status == 'In Progress' %}
+                            <span class="badge bg-primary"><i class="fa-solid fa-spinner fa-spin me-1"></i>In Progress</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form action="{{ url_for('update_task_status', task_id=t.id) }}" method="POST" class="d-inline">
+                                <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                                    <option value="Pending" {% if t.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                    <option value="In Progress" {% if t.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Completed" {% if t.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Staff Directory Roster -->
+<h4 class="fw-bold text-dark mb-3">Staff Directory & Shift Schedule</h4>
+<div class="row g-4">
+    {% for s in staff %}
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="p-3 bg-light rounded-circle text-primary">
+                    <i class="fa-solid fa-id-card fs-3"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold text-dark mb-0">{{ s.name }}</h5>
+                    <small class="badge bg-secondary mb-1">{{ s.role }}</small>
+                    <div class="small text-muted"><i class="fa-solid fa-phone me-1"></i>{{ s.phone }}</div>
+                    <div class="small text-muted"><i class="fa-solid fa-clock me-1"></i>Shift: {{ s.shift }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal: Add New Staff -->
+<div class="modal fade" id="newStaffModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-plus me-2 text-warning"></i>Add Staff Member</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_staff') }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-control" name="name" placeholder="e.g. Maria Garcia" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" name="role" required>
+                            <option value="Housekeeping">Housekeeping</option>
+                            <option value="Front Desk">Front Desk</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Concierge">Concierge</option>
+                            <option value="Manager">Manager</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" class="form-control" name="phone" placeholder="+1-555-0199" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Shift</label>
+                        <select class="form-select" name="shift" required>
+                            <option value="Morning">Morning Shift (7 AM - 3 PM)</option>
+                            <option value="Evening">Evening Shift (3 PM - 11 PM)</option>
+                            <option value="Night">Night Shift (11 PM - 7 AM)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-gold w-100 py-2">Save Staff Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Assign Task -->
+<div class="modal fade" id="newTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-tasks me-2 text-warning"></i>Assign Housekeeping / Maintenance Task</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_task') }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Target Room</label>
+                        <select class="form-select" name="room_id" required>
+                            {% for r in rooms %}
+                            <option value="{{ r.id }}">Room {{ r.room_number }} ({{ r.status }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assign To Staff</label>
+                        <select class="form-select" name="staff_id">
+                            <option value="">-- Unassigned --</option>
+                            {% for s in staff %}
+                            <option value="{{ s.id }}">{{ s.name }} ({{ s.role }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Task Type</label>
+                        <select class="form-select" name="task_type" required>
+                            <option value="Standard Clean">Standard Clean</option>
+                            <option value="Deep Clean">Deep Clean</option>
+                            <option value="Turn-down Service">Turn-down Service</option>
+                            <option value="Plumbing Maintenance">Plumbing Maintenance</option>
+                            <option value="Electrical Repair">Electrical Repair</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" name="priority" required>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-gold w-100 py-2">Dispatch Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

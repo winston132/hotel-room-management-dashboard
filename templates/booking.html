@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Room Booking & Guest Registration - Hotel Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="fa-solid fa-bed text-primary me-2"></i>Room Booking & Guest Registration</h2>
+        <p class="text-muted">Register guests, assign available rooms, and manage check-in / check-out workflows.</p>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#newBookingModal">
+            <i class="fa-solid fa-calendar-plus me-1"></i> Register & Book Guest
+        </button>
+    </div>
+</div>
+
+<!-- Room Inventory Grid -->
+<h4 class="fw-bold text-dark mb-3">Room Inventory & Status</h4>
+<div class="row g-4 mb-5">
+    {% for r in rooms %}
+    <div class="col-md-4 col-lg-3">
+        <div class="card room-card border-0 shadow-sm rounded-3 h-100">
+            <img src="{{ r.image_url }}" class="card-img-top" alt="Room Image">
+            <div class="card-body p-3 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold fs-5 text-dark">Room {{ r.room_number }}</span>
+                    {% if r.status == 'Available' %}
+                    <span class="badge badge-available">Available</span>
+                    {% elif r.status == 'Occupied' %}
+                    <span class="badge badge-occupied">Occupied</span>
+                    {% elif r.status == 'Dirty' %}
+                    <span class="badge badge-dirty">Needs Cleaning</span>
+                    {% else %}
+                    <span class="badge badge-maintenance">Maintenance</span>
+                    {% endif %}
+                </div>
+                <div class="text-muted small mb-2"><i class="fa-solid fa-layer-group me-1"></i>{{ r.room_type }} &bull; Max {{ r.capacity }} Guests</div>
+                <p class="card-text small text-secondary mb-3">{{ r.amenities }}</p>
+                <div class="mt-auto d-flex justify-content-between align-items-center pt-2 border-top">
+                    <span class="fw-bold text-primary fs-6">${{ r.price_per_night }} <small class="text-muted font-normal">/ night</small></span>
+                    {% if r.status == 'Available' %}
+                    <button class="btn btn-sm btn-gold rounded-pill" data-bs-toggle="modal" data-bs-target="#newBookingModal" onclick="document.getElementById('room_id').value='{{ r.id }}'">Book Now</button>
+                    {% else %}
+                    <button class="btn btn-sm btn-light text-muted rounded-pill" disabled>{{ r.status }}</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Active Reservations Table -->
+<h4 class="fw-bold text-dark mb-3">All Reservations</h4>
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-5">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table custom-table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Guest Name</th>
+                        <th>Contact & ID</th>
+                        <th>Room</th>
+                        <th>Check-In</th>
+                        <th>Check-Out</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bookings %}
+                    <tr>
+                        <td class="fw-bold">#{{ b.id }}</td>
+                        <td>
+                            <div class="fw-semibold text-dark">{{ b.guest.full_name }}</div>
+                            <small class="text-muted"><i class="fa-solid fa-award text-warning me-1"></i>{{ b.guest.loyalty_points }} Loyalty Pts</small>
+                        </td>
+                        <td>
+                            <small class="d-block">{{ b.guest.email }}</small>
+                            <small class="text-muted">{{ b.guest.id_proof_type }}: {{ b.guest.id_proof_number }}</small>
+                        </td>
+                        <td><span class="badge bg-dark">Room {{ b.room.room_number }}</span> ({{ b.room.room_type }})</td>
+                        <td>{{ b.check_in_date }}</td>
+                        <td>{{ b.check_out_date }}</td>
+                        <td class="fw-bold text-success">${{ "{:,.2f}".format(b.total_amount) }}</td>
+                        <td>
+                            {% if b.booking_status == 'Checked-In' %}
+                            <span class="badge badge-checkedin"><i class="fa-solid fa-key me-1"></i>Checked-In</span>
+                            {% elif b.booking_status == 'Confirmed' %}
+                            <span class="badge badge-confirmed">Confirmed</span>
+                            {% elif b.booking_status == 'Checked-Out' %}
+                            <span class="badge badge-checkedout">Checked-Out</span>
+                            {% else %}
+                            <span class="badge bg-danger">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if b.booking_status == 'Confirmed' %}
+                            <form action="{{ url_for('update_booking_status', booking_id=b.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="status" value="Checked-In">
+                                <button type="submit" class="btn btn-sm btn-success"><i class="fa-solid fa-door-open me-1"></i>Check-In</button>
+                            </form>
+                            {% elif b.booking_status == 'Checked-In' %}
+                            <form action="{{ url_for('update_booking_status', booking_id=b.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="status" value="Checked-Out">
+                                <button type="submit" class="btn btn-sm btn-warning"><i class="fa-solid fa-right-from-bracket me-1"></i>Check-Out</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: New Booking & Registration -->
+<div class="modal fade" id="newBookingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-plus text-warning me-2"></i>Guest Registration & Room Reservation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_booking') }}" method="POST">
+                <div class="modal-body p-4">
+                    <h6 class="fw-bold text-primary mb-3">1. Guest Identification Details</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" name="full_name" placeholder="e.g. John Doe" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-control" name="email" placeholder="john@example.com" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" name="phone" placeholder="+1-555-0100" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">ID Proof Type</label>
+                            <select class="form-select" name="id_proof_type" required>
+                                <option value="Passport">Passport</option>
+                                <option value="Driving License">Driving License</option>
+                                <option value="National ID">National ID</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">ID Proof Number</label>
+                            <input type="text" class="form-control" name="id_proof_number" placeholder="ID Number" required>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold text-primary mb-3">2. Room & Reservation Selection</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Select Room</label>
+                            <select class="form-select" name="room_id" id="room_id" required>
+                                <option value="">Choose Available Room...</option>
+                                {% for r in rooms %}
+                                {% if r.status == 'Available' %}
+                                <option value="{{ r.id }}" data-price="{{ r.price_per_night }}">Room {{ r.room_number }} ({{ r.room_type }}) - ${{ r.price_per_night }}/night</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Check-In Date</label>
+                            <input type="date" class="form-control" name="check_in_date" id="check_in_date" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Check-Out Date</label>
+                            <input type="date" class="form-control" name="check_out_date" id="check_out_date" required>
+                        </div>
+                    </div>
+
+                    <div class="bg-light p-3 rounded mt-4 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted d-block small">Calculated Total</span>
+                            <h4 class="fw-bold text-success mb-0" id="total_calc_display">$0.00</h4>
+                        </div>
+                        <button type="submit" class="btn btn-gold px-4 py-2">Confirm Reservation</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
